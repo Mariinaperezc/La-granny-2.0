@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE HAUNTED HOUSE — Juego de terror</title>
+<style>
+:root{color-scheme:dark;--ink:#e9e6dc;--muted:#a6aaa0;--panel:#111713;--line:#465047;--gold:#c6a66b}
+*{box-sizing:border-box}body{margin:0;background:#080c0a;color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1100px;margin:auto;padding:22px 16px 40px}
+header{text-align:center;padding:16px 0 20px}
+.kicker{letter-spacing:.28em;color:#a6ad9f;font-size:.7rem}
+h1{font-size:clamp(2rem,7vw,4.5rem);letter-spacing:.12em;margin:.25rem 0;color:#e7e1d0;text-shadow:0 4px 24px #000}
+.subtitle{color:#aeb4a9;font-size:.85rem;letter-spacing:.16em}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:18px;align-items:start}
+.gamebox,.side{background:linear-gradient(145deg,#151d18,#0e1410);border:1px solid #39443b;border-radius:16px;box-shadow:0 18px 55px #0008}
+.gamebox{padding:14px}.stats{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.stat{background:#080e0a;border:1px solid #364238;border-radius:9px;padding:8px 11px;font-size:.78rem;color:#cbd0c5}
+.stat b{color:#fff}
+#canvasWrap{position:relative;max-width:100%;margin:auto;background:#090d0a;border:1px solid #58604e;border-radius:10px;overflow:hidden}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:none}
+#toast{min-height:48px;margin-top:12px;padding:12px;background:#0b120e;border-left:3px solid var(--gold);border-radius:5px;color:#d6d5ca;font-size:.88rem}
+.side{padding:16px}.side h2{font-size:1rem;letter-spacing:.12em;margin:0 0 10px}
+.side p,.side li{color:#b9c0b5;font-size:.85rem}.side ul{padding-left:18px}
+.controls{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-width:210px;margin:14px auto}
+button{border:1px solid #596653;background:linear-gradient(#354338,#202c24);color:#f1f0e9;border-radius:9px;padding:11px 12px;min-height:44px;font-weight:650;cursor:pointer}
+button:hover{filter:brightness(1.18)}button:focus-visible{outline:2px solid #e0c78d;outline-offset:3px}
+.controls button{font-size:1.25rem;padding:6px}.controls .blank{visibility:hidden}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.actions button{font-size:.78rem}.primary{background:linear-gradient(#67543a,#3d3021);border-color:#9c8154}
+#restart{width:100%;margin-top:9px}
+.note{font-size:.72rem;color:#929b8f;margin-top:12px}
+#overlay{position:absolute;inset:0;background:#050907eF;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
+#overlay[hidden]{display:none}.modal{max-width:420px}.modal h2{font-size:2rem;letter-spacing:.12em}.modal p{color:#c1c7bb}
+@media(max-width:780px){.layout{grid-template-columns:1fr}.side{order:2}main{padding:12px}.gamebox{padding:9px}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="kicker">NIGHTMARE STUDIOS PRESENTS</div><h1>THE HAUNTED HOUSE</h1><div class="subtitle">NO HAGAS RUIDO. NO MIRES ATRÁS.</div></header>
+<div class="layout">
+<section class="gamebox">
+ <div class="stats">
+  <div class="stat">♥ VIDAS: <b id="lives">1</b></div>
+  <div class="stat">⏱ TIEMPO: <b id="time">02:13</b></div>
+  <div class="stat">▣ OBJETOS: <b id="items">0/3</b></div>
+ </div>
+ <div id="canvasWrap">
+  <canvas id="game" width="720" height="560" aria-label="Vista superior de una casa encantada"></canvas>
+  <div id="overlay"><div class="modal"><div style="font-size:3rem">🏚️</div><h2>ESTÁS ATRAPADA</h2><p>Encuentra la llave, el fusible y la palanca. La anciana patrulla la casa. Escóndete, evita hacer ruido y encuentra la salida.</p><button id="start" class="primary">EMPEZAR A JUGAR</button></div></div>
+ </div>
+ <div id="toast" aria-live="polite">Pulsa «Empezar a jugar» para entrar en la casa.</div>
+</section>
+<aside class="side">
+ <h2>CONTROLES</h2>
+ <p>Teclado: <b>WASD</b> o <b>flechas</b> para moverte. <b>E</b> para interactuar y <b>ESPACIO</b> para esconderte.</p>
+ <div class="controls" aria-label="Controles táctiles">
+  <span class="blank"></span><button data-move="up" aria-label="Arriba">↑</button><span class="blank"></span>
+  <button data-move="left" aria-label="Izquierda">←</button><button data-move="down" aria-label="Abajo">↓</button><button data-move="right" aria-label="Derecha">→</button>
+ </div>
+ <div class="actions"><button id="hide" class="primary">ESCONDERSE</button><button id="use" class="primary">INTERACTUAR</button></div>
+ <button id="restart">↻ REINICIAR</button>
+ <h2 style="margin-top:20px">TU MISIÓN</h2>
+ <ul><li>Encuentra tres objetos necesarios para abrir la salida.</li><li>La anciana escucha tus pasos y te persigue.</li><li>Los armarios marcados son escondites.</li><li>Llega a la puerta principal y escapa.</li></ul>
+ <p class="note">Prototipo original de terror y supervivencia, inspirado en el género de escape horror. No utiliza personajes, mapas ni recursos oficiales de Granny.</p>
+</aside>
+</div>
+</main>
+<script>
+(() => {
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=720,H=560,C=80,cols=9,rows=7;
+const map=[
+ [1,1,1,1,1,1,1,1,1],
+ [1,0,0,0,1,0,0,0,1],
+ [1,0,1,0,0,0,1,0,1],
+ [1,0,0,0,1,0,0,0,1],
+ [1,1,1,0,1,0,1,1,1],
+ [1,0,0,0,0,0,0,0,1],
+ [1,1,1,1,1,1,1,1,1]
+];
+const player={x:3,y:5},enemy={x:5,y:1};
+const objects=[
+ {x:1,y:1,name:'Llave antigua',glyph:'⚿',color:'#e4c36e'},
+ {x:7,y:3,name:'Fusible',glyph:'▥',color:'#8ec8d8'},
+ {x:1,y:5,name:'Palanca',glyph:'⚙',color:'#c7c9bd'}
+];
+const hideSpots=[{x:2,y:3},{x:6,y:5}];
+let collected=[],running=false,dead=false,hidden=false,turn=0,seconds=0,enemyTick=0,notice='Explora la casa. No dejes que te encuentre.';
+const $=id=>document.getElementById(id);
+function wall(x,y){return x<0||y<0||x>=cols||y>=rows||map[y][x]===1}
+function say(t){notice=t;$('toast').textContent=t}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ // Room floor and walls
+ for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+  const px=x*C,py=y*C;
+  if(wall(x,y)){
+   let g=ctx.createLinearGradient(px,py,px+C,py+C);g.addColorStop(0,'#55584b');g.addColorStop(.5,'#353b32');g.addColorStop(1,'#20271f');ctx.fillStyle=g;ctx.fillRect(px,py,C,C);
+   ctx.strokeStyle='#68705e';ctx.lineWidth=3;ctx.strokeRect(px+4,py+4,C-8,C-8);
+   ctx.fillStyle='#161d18';ctx.fillRect(px+8,py+8,C-16,C-16);
+  }else{
+   ctx.fillStyle=(x+y)%2?'#3a3b31':'#32352d';ctx.fillRect(px,py,C,C);
+   ctx.strokeStyle='#48493d';ctx.lineWidth=1;ctx.strokeRect(px,py,C,C);
+   // floorboard details
+   ctx.strokeStyle='#252b24';ctx.beginPath();ctx.moveTo(px+5,py+25);ctx.lineTo(px+C-5,py+25);ctx.moveTo(px+5,py+55);ctx.lineTo(px+C-5,py+55);ctx.stroke();
+  }
+ }
+ // Exit
+ ctx.fillStyle='#7a6845';ctx.fillRect(4*C+22,0,36,12);ctx.fillStyle='#d4b777';ctx.fillRect(4*C+29,0,22,8);
+ ctx.fillStyle='#e4d6a9';ctx.font='13px sans-serif';ctx.fillText('SALIDA',4*C+16,22);
+ // hiding places
+ hideSpots.forEach(s=>{ctx.fillStyle='#263f34';ctx.fillRect(s.x*C+13,s.y*C+12,54,56);ctx.strokeStyle='#75907b';ctx.strokeRect(s.x*C+13,s.y*C+12,54,56);ctx.fillStyle='#c4d0bf';ctx.font='23px serif';ctx.fillText('▤',s.x*C+28,s.y*C+47)});
+ // objects
+ objects.forEach(o=>{if(!collected.includes(o.name)){ctx.save();ctx.shadowColor=o.color;ctx.shadowBlur=15;ctx.fillStyle=o.color;ctx.font='bold 32px serif';ctx.textAlign='center';ctx.fillText(o.glyph,o.x*C+40,o.y*C+49);ctx.restore()}});
+ // enemy
+ if(running&&!dead){let ex=enemy.x*C+40,ey=enemy.y*C+40;
+  ctx.save();ctx.shadowColor='#a50000';ctx.shadowBlur=22;
+  ctx.fillStyle='#17100f';ctx.beginPath();ctx.ellipse(ex,ey+7,22,28,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#b9a99a';ctx.beginPath();ctx.arc(ex,ey-10,17,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#7e1717';ctx.beginPath();ctx.arc(ex-6,ey-12,3,0,Math.PI*2);ctx.arc(ex+6,ey-12,3,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+ }
+ // player
+ if(!hidden){let px=player.x*C+40,py=player.y*C+40;ctx.save();ctx.shadowColor='#a6d9ff';ctx.shadowBlur=18;ctx.fillStyle='#b7d5dc';ctx.beginPath();ctx.arc(px,py,15,0,Math.PI*2);ctx.fill();ctx.fillStyle='#263b40';ctx.beginPath();ctx.arc(px,py-3,7,0,Math.PI*2);ctx.fill();ctx.restore()}
+ // darkness vignette
+ let px=player.x*C+40,py=player.y*C+40;ctx.save();ctx.fillStyle='rgba(0,0,0,.79)';ctx.fillRect(0,0,W,H);ctx.globalCompositeOperation='destination-out';
+ let grad=ctx.createRadialGradient(px,py,45,px,py,235);grad.addColorStop(0,'rgba(0,0,0,1)');grad.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);ctx.restore();
+ // flashlight light overlay glow
+ ctx.save();let glow=ctx.createRadialGradient(px,py,5,px,py,150);glow.addColorStop(0,'rgba(226,215,169,.10)');glow.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=glow;ctx.fillRect(0,0,W,H);ctx.restore();
+ $('items').textContent=collected.length+'/3';$('time').textContent='02:'+String(13+Math.floor(seconds/60)).padStart(2,'0');
+}
+function enemyMove(){
+ if(hidden)return;
+ const opts=[];
+ if(Math.abs(player.x-enemy.x)>Math.abs(player.y-enemy.y)){opts.push([Math.sign(player.x-enemy.x),0],[0,Math.sign(player.y-enemy.y)])}
+ else{opts.push([0,Math.sign(player.y-enemy.y)],[Math.sign(player.x-enemy.x),0])}
+ opts.push([0,1],[1,0],[-1,0],[0,-1]);
+ for(const [dx,dy] of opts){if((dx||dy)&&!wall(enemy.x+dx,enemy.y+dy)){enemy.x+=dx;enemy.y+=dy;break}}
+ if(enemy.x===player.x&&enemy.y===player.y)finish(false);
+}
+function finish(win){running=false;dead=true;$('overlay').hidden=false;$('overlay').querySelector('.modal').innerHTML=win?'<div style="font-size:3rem">🌅</div><h2>HAS ESCAPADO</h2><p>Has conseguido salir de la casa. ¿Pero qué era aquella sombra detrás de la ventana?</p><button id="again" class="primary">JUGAR OTRA VEZ</button>':'<div style="font-size:3rem">☠️</div><h2>TE HA ENCONTRADO</h2><p>La anciana te ha atrapado. La casa vuelve a quedarse en silencio...</p><button id="again" class="primary">VOLVER A INTENTARLO</button>';$('again').addEventListener('click',reset);draw()}
+function step(dx,dy){if(!running||dead||hidden)return;let nx=player.x+dx,ny=player.y+dy;if(wall(nx,ny)){say('Hay una pared. Busca otro camino.');return}player.x=nx;player.y=ny;turn++;seconds+=8;
+ let o=objects.find(a=>a.x===nx&&a.y===ny&&!collected.includes(a.name));if(o){collected.push(o.name);say('Has encontrado: '+o.name+'.');}else say('Tus pasos resuenan por el pasillo...');enemyTick++;if(enemyTick%2===0)enemyMove();
+ if(player.x===4&&player.y===0){if(collected.length===3)finish(true);else say('La salida está cerrada. Necesitas los tres objetos.')}
+ if(enemy.x===player.x&&enemy.y===player.y)finish(false);draw();
+}
+function interact(){if(!running)return;if(player.x===4&&player.y===0){if(collected.length===3)finish(true);else say('La puerta necesita la llave, el fusible y la palanca.');return}
+ let o=objects.find(a=>a.x===player.x&&a.y===player.y&&!collected.includes(a.name));if(o){collected.push(o.name);say('Has recogido: '+o.name+'.');}else say('No hay nada que puedas utilizar aquí.');draw()}
+function hide(){if(!running)return;let spot=hideSpots.some(s=>s.x===player.x&&s.y===player.y);if(!hidden&&!spot){say('Aquí no hay ningún sitio donde esconderte.');return}hidden=!hidden;say(hidden?'Te has escondido. No hagas ruido.':'Has salido del escondite. ¡Cuidado!');if(!hidden){enemyMove()}draw()}
+function reset(){player.x=3;player.y=5;enemy.x=5;enemy.y=1;collected=[];running=true;dead=false;hidden=false;turn=0;seconds=0;enemyTick=0;$('overlay').hidden=true;say('La puerta se ha cerrado detrás de ti. Encuentra los tres objetos.');draw()}
+function moveKey(k){const d={ArrowUp:[0,-1],w:[0,-1],ArrowDown:[0,1],s:[0,1],ArrowLeft:[-1,0],a:[-1,0],ArrowRight:[1,0],d:[1,0]}[k];if(d)step(...d)}
+document.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();if(e.key===' '){hide();return}if(e.key.toLowerCase()==='e'){interact();return}moveKey(e.key)});
+document.querySelectorAll('[data-move]').forEach(b=>b.addEventListener('click',()=>{const d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[b.dataset.move];step(...d)}));
+$('hide').addEventListener('click',hide);$('use').addEventListener('click',interact);$('restart').addEventListener('click',reset);$('start').addEventListener('click',reset);
+draw();
+})();
+</script>
+</body>
+</html>
